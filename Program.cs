@@ -1,15 +1,9 @@
 ﻿using System.IO;
-using System.Security.Cryptography.X509Certificates;
 using JsonFx.Json;
 using MySql.Data.MySqlClient;
-using MySQLJSONConfig;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace trackListingGrabber
 {
@@ -17,8 +11,9 @@ namespace trackListingGrabber
     {
         static void Main(string[] args)
         {
-            string cs = @"server=localhost;userid=localhost;
-            password=pw;database=music";
+            StreamReader sw = new StreamReader("config.txt"); //server=localhost;userid=root;password=password;database=audio
+
+            string cs = sw.ReadToEnd();
 
             MySqlConnection conn = null;
             conn = new MySqlConnection(cs);
@@ -35,6 +30,7 @@ namespace trackListingGrabber
                 "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/33.0.1750.117 Safari/537.36";
 
             int failCount = 0;
+            int lastTrackI = 0;
 
             while (true)
             {
@@ -52,16 +48,19 @@ namespace trackListingGrabber
                         "http://api.audioaddict.com/v1/di/track_history/channel/" + channelID +
                         ".jsonp?callback=_AudioAddict_TrackHistory_WP");
                 }
-                catch
+                catch(Exception ex)
                 {
                     failCount = failCount + 1;
                     if (failCount == 3)
                     {
+                        File.AppendAllText(@"log.txt", "Failed 3 times, this time with reason: " + ex);
+
                         Console.WriteLine("Failed 3 times, closing!");
                         break;
                     }
                     else
                     {
+                        File.AppendAllText(@"log.txt", "Failed with reason: " + ex);
                         Console.WriteLine("Got an error on the audio addict API, sleeping for 1 minute");
                         Thread.Sleep(60 * 1000); // One Minute
                     }
@@ -74,14 +73,13 @@ namespace trackListingGrabber
                     var reader = new JsonReader();
 
                     dynamic tracks = reader.Read(json);
-                    int lastTrackI = 0;
 
                     dynamic track = tracks[0];
 
                     if (track.type == "advertisement")
                     {
-                        Console.WriteLine("Advert - sleeping for 10");
-                        Thread.Sleep(10*1000); // 10 seconds
+                        Console.WriteLine("Advert - sleeping for 30");
+                        Thread.Sleep(30*1000); // 10 seconds
                     }
                     else
                     {
